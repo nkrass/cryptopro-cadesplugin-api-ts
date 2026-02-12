@@ -160,10 +160,12 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
   };
 
   const async_spawn = async function <T>(
-    generatorFunc: (...args: any[]) => Generator<any, T, any>,
+    generatorFunc: (args: any[]) => Generator<any, T, any>,
     ...args: any[]
   ): Promise<T> {
-    const generator = generatorFunc(...args);
+    // Upstream `cadesplugin_api.js` passes all args (except generatorFunc) as a single array argument.
+    // The extension scripts (nmcades_plugin_api.js) rely on this calling convention.
+    const generator = generatorFunc(args);
 
     const step = (verb: 'next' | 'throw', arg?: any): Promise<any> => {
       let result: IteratorResult<any, T>;

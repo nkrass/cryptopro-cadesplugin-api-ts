@@ -21,7 +21,7 @@ export interface CadesPluginGlobal extends PromiseLike<void> {
 
   // Core API used by the portal
   async_spawn<T>(
-    generatorFunc: (...args: any[]) => Generator<any, T, any>,
+    generatorFunc: (args: any[]) => Generator<any, T, any>,
     ...args: any[]
   ): Promise<T>;
   CreateObjectAsync(name: string): any;
