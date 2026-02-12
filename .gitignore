@@ -1,0 +1,8 @@
+node_modules
+dist
+.DS_Store
+
+# Downloaded upstream references (not committed by default)
+upstream/*.js
+upstream/*.sha256
+
