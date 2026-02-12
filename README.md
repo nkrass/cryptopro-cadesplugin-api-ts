@@ -12,6 +12,17 @@ Non-goals:
 
 ## Install / Use
 
+### Recommended (modern async init)
+
+This avoids the common pitfall with thenables where `await installCadesPlugin(...)` would resolve to `void`.
+
+```ts
+import { initCadesPlugin } from 'cryptopro-cadesplugin-api-ts';
+
+const cadesplugin = await initCadesPlugin(window, document);
+const store = await cadesplugin.CreateObjectAsync('CAdESCOM.Store');
+```
+
 ### 1) Global drop-in (`window.cadesplugin`)
 
 ```ts
@@ -46,4 +57,3 @@ This project is based on CryptoPro's upstream `cadesplugin_api.js` (`JSModuleVer
 
 For redistribution safety, the upstream script is **not committed** here by default.
 Use `npm run upstream:fetch` to download it locally (see `upstream/README.md`).
-
