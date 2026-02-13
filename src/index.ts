@@ -1,16 +1,25 @@
-export { installCadesPlugin } from './cadesplugin_api.install';
-export type { CadesPluginGlobal, LogLevel } from './cadesplugin_api.types';
-
 import { installCadesPlugin } from './cadesplugin_api.install';
-import type { CadesPluginGlobal } from './cadesplugin_api.types';
+import type { CadesPluginClient } from './cadesplugin_api.types';
+
+export { installCadesPlugin } from './cadesplugin_api.install';
+export type { CadesPluginClient, CadesPluginGlobal, LogLevel } from './cadesplugin_api.types';
 
 /**
- * Ergonomic initializer for modern code:
- * - returns a real Promise (so `await initCadesPlugin(...)` gives you the plugin object)
- * - still keeps upstream compatibility (`installCadesPlugin` returns a thenable)
+ * Modern non-thenable wrapper. The `ready` Promise resolves when the extension/native host handshake is complete.
  */
-export async function initCadesPlugin(win: Window, doc: Document): Promise<CadesPluginGlobal> {
-  const cadesplugin = installCadesPlugin(win, doc);
-  await cadesplugin;
-  return cadesplugin;
+export function createCadesPluginClient(win: Window, doc: Document): CadesPluginClient {
+  const raw = installCadesPlugin(win, doc);
+  return {
+    raw,
+    ready: Promise.resolve(raw),
+    async_spawn: raw.async_spawn,
+    CreateObjectAsync: raw.CreateObjectAsync,
+    getLastError: raw.getLastError,
+  };
+}
+
+export async function initCadesPluginClient(win: Window, doc: Document): Promise<CadesPluginClient> {
+  const client = createCadesPluginClient(win, doc);
+  await client.ready;
+  return client;
 }

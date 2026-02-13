@@ -32,6 +32,34 @@ function getMessageFromException(exception: unknown): string {
   }
 }
 
+type CspViolationInfo = {
+  blockedURI: string;
+  effectiveDirective: string;
+  violatedDirective: string;
+};
+
+function createCspViolationRecorder(doc: Document) {
+  const violations: CspViolationInfo[] = [];
+
+  const handler = (event: Event) => {
+    const blockedURI = String((event as any)?.blockedURI ?? '');
+    if (!blockedURI) return;
+    violations.push({
+      blockedURI,
+      effectiveDirective: String((event as any)?.effectiveDirective ?? ''),
+      violatedDirective: String((event as any)?.violatedDirective ?? ''),
+    });
+  };
+
+  doc.addEventListener('securitypolicyviolation', handler as any);
+
+  return {
+    findByBlockedUri: (uri: string): CspViolationInfo | null =>
+      violations.find((v) => v.blockedURI === uri) ?? null,
+    stop: () => doc.removeEventListener('securitypolicyviolation', handler as any),
+  };
+}
+
 function loadScript(doc: Document, src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const script = doc.createElement('script');
@@ -309,6 +337,14 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
     ReleasePluginObjects,
   };
 
+  // CryptoPro extension scripts expect `window.cadesplugin` to exist and expose `.set(...)`.
+  // Setting it here makes the functional API usable without relying on a side-effect import.
+  try {
+    (win as any).cadesplugin = cadesplugin;
+  } catch {
+    // ignore
+  }
+
   const loadTimeoutMsRaw = Number((win as any).cadesplugin_load_timeout);
   const loadTimeoutMs = Number.isFinite(loadTimeoutMsRaw) && loadTimeoutMsRaw > 0 ? loadTimeoutMsRaw : 20_000;
 
@@ -340,27 +376,42 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
 
       let loadedUrl: string | null = null;
       let lastLoadError: unknown = null;
+      let lastCspViolation: CspViolationInfo | null = null;
 
-      for (const url of urls) {
-        try {
-          await loadScript(doc, url);
-          loadedUrl = url;
-          break;
-        } catch (e) {
-          lastLoadError = e;
+      const csp = createCspViolationRecorder(doc);
+      try {
+        for (const url of urls) {
+          try {
+            await loadScript(doc, url);
+            loadedUrl = url;
+            break;
+          } catch (e) {
+            lastLoadError = e;
+            lastCspViolation = csp.findByBlockedUri(url) ?? lastCspViolation;
+          }
         }
+      } finally {
+        csp.stop();
       }
 
       if (!loadedUrl) {
         const details = normalizeErrorForUser(lastLoadError);
+        const cspHint = lastCspViolation
+          ? `CSP blocked the extension script (directive: ${
+              lastCspViolation.effectiveDirective || lastCspViolation.violatedDirective || 'unknown'
+            }, blockedURI: ${lastCspViolation.blockedURI}).`
+          : '';
         throw new Error(
           [
             'CryptoPro extension API script failed to load.',
             'Make sure the CryptoPro CAdES extension is installed and enabled.',
             'If your site uses strict CSP, it must allow the CryptoPro extension origins in script-src/script-src-elem.',
             'If your server applies CSP per-route, do a full page reload on the route where CryptoPro is enabled.',
+            cspHint,
             `Details: ${details}`,
-          ].join(' '),
+          ]
+            .filter(Boolean)
+            .join(' '),
         );
       }
 

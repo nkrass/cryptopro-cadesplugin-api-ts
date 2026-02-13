@@ -12,15 +12,15 @@ Non-goals:
 
 ## Install / Use
 
-### Recommended (modern async init)
+### Recommended (modern client API)
 
-This avoids the common pitfall with thenables where `await installCadesPlugin(...)` would resolve to `void`.
+This avoids the common pitfall with thenables where `await installCadesPlugin(...)` resolves to `void`.
 
 ```ts
-import { initCadesPlugin } from 'cryptopro-cadesplugin-api-ts';
+import { initCadesPluginClient } from 'cryptopro-cadesplugin-api-ts';
 
-const cadesplugin = await initCadesPlugin(window, document);
-const store = await cadesplugin.CreateObjectAsync('CAdESCOM.Store');
+const cades = await initCadesPluginClient(window, document);
+const store = await cades.CreateObjectAsync('CAdESCOM.Store');
 ```
 
 ### 1) Global drop-in (`window.cadesplugin`)

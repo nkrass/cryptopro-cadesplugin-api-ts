@@ -41,3 +41,16 @@ export interface CadesPluginGlobal extends PromiseLike<void> {
   ): Promise<void | TResult>;
   finally?(onfinally?: (() => void) | null): Promise<void>;
 }
+
+/**
+ * Modern non-thenable wrapper around the upstream thenable `window.cadesplugin`.
+ * Useful because Promises/async functions cannot "return a thenable" without it being unwrapped to `void`.
+ */
+export interface CadesPluginClient {
+  raw: CadesPluginGlobal;
+  ready: Promise<void>;
+
+  async_spawn: CadesPluginGlobal['async_spawn'];
+  CreateObjectAsync: CadesPluginGlobal['CreateObjectAsync'];
+  getLastError: CadesPluginGlobal['getLastError'];
+}
