@@ -1,7 +1,7 @@
 {
   "name": "cryptopro-cadesplugin-api-ts",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "description": "Modern TypeScript CryptoPro CAdES cadesplugin_api loader (Chromium).",
   "license": "MIT",
@@ -33,7 +33,6 @@
     "dist",
     "src",
     "README.md",
-    "README.ru.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"
   ],
