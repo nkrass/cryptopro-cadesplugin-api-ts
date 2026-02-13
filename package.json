@@ -1,5 +1,5 @@
 {
-  "name": "cryptopro-cadesplugin-api-ts",
+  "name": "@nkrass/cryptopro-cadesplugin-api-ts",
   "version": "2.4.2",
   "private": false,
   "type": "module",

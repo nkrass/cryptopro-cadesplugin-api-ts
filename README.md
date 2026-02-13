@@ -27,7 +27,14 @@ Non-goals:
 ## Install
 
 ```bash
-npm i cryptopro-cadesplugin-api-ts
+npm i @nkrass/cryptopro-cadesplugin-api-ts
+```
+
+If you need to keep the old unscoped import path (`cryptopro-cadesplugin-api-ts`) in an existing project,
+install via an npm alias:
+
+```bash
+npm i cryptopro-cadesplugin-api-ts@npm:@nkrass/cryptopro-cadesplugin-api-ts
 ```
 
 ## Usage
@@ -35,7 +42,7 @@ npm i cryptopro-cadesplugin-api-ts
 ### Recommended (modern client API)
 
 ```ts
-import { initCadesPluginClient } from 'cryptopro-cadesplugin-api-ts';
+import { initCadesPluginClient } from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 const cades = await initCadesPluginClient(window, document, {
   timeoutMs: 20_000,
@@ -47,7 +54,7 @@ const store = await cades.CreateObjectAsync('CAdESCOM.Store');
 ### Global drop-in (`window.cadesplugin`)
 
 ```ts
-import 'cryptopro-cadesplugin-api-ts/cadesplugin_api';
+import '@nkrass/cryptopro-cadesplugin-api-ts/cadesplugin_api';
 
 await window.cadesplugin;
 const store = await window.cadesplugin!.CreateObjectAsync('CAdESCOM.Store');
@@ -56,7 +63,7 @@ const store = await window.cadesplugin!.CreateObjectAsync('CAdESCOM.Store');
 ### Explicit initializer (tests / custom wiring)
 
 ```ts
-import { installCadesPlugin } from 'cryptopro-cadesplugin-api-ts';
+import { installCadesPlugin } from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 const cadesplugin = installCadesPlugin(window, document);
 await cadesplugin;
@@ -80,7 +87,7 @@ Initialization rejects with `CadesPluginError` that includes a stable `.code`:
 import {
   initCadesPluginClient,
   isCadesPluginError,
-} from 'cryptopro-cadesplugin-api-ts';
+} from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 try {
   const cades = await initCadesPluginClient(window, document);
@@ -150,7 +157,14 @@ Use `npm run upstream:fetch` to download it locally (see `upstream/README.md`).
 ### Установка
 
 ```bash
-npm i cryptopro-cadesplugin-api-ts
+npm i @nkrass/cryptopro-cadesplugin-api-ts
+```
+
+Если нужно оставить старый unscoped import path (`cryptopro-cadesplugin-api-ts`) в существующем проекте,
+можно поставить пакет через npm alias:
+
+```bash
+npm i cryptopro-cadesplugin-api-ts@npm:@nkrass/cryptopro-cadesplugin-api-ts
 ```
 
 ### Использование
@@ -158,7 +172,7 @@ npm i cryptopro-cadesplugin-api-ts
 #### Рекомендуемый вариант (modern client API)
 
 ```ts
-import { initCadesPluginClient } from 'cryptopro-cadesplugin-api-ts';
+import { initCadesPluginClient } from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 const cades = await initCadesPluginClient(window, document, {
   timeoutMs: 20_000,
@@ -170,7 +184,7 @@ const store = await cades.CreateObjectAsync('CAdESCOM.Store');
 #### Drop-in глобально (`window.cadesplugin`)
 
 ```ts
-import 'cryptopro-cadesplugin-api-ts/cadesplugin_api';
+import '@nkrass/cryptopro-cadesplugin-api-ts/cadesplugin_api';
 
 await window.cadesplugin;
 const store = await window.cadesplugin!.CreateObjectAsync('CAdESCOM.Store');
@@ -179,7 +193,7 @@ const store = await window.cadesplugin!.CreateObjectAsync('CAdESCOM.Store');
 #### Явная инициализация (тесты / кастомная интеграция)
 
 ```ts
-import { installCadesPlugin } from 'cryptopro-cadesplugin-api-ts';
+import { installCadesPlugin } from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 const cadesplugin = installCadesPlugin(window, document);
 await cadesplugin;
@@ -200,7 +214,7 @@ await cadesplugin;
 При ошибке инициализации будет `CadesPluginError` со стабильным `.code`:
 
 ```ts
-import { initCadesPluginClient, isCadesPluginError } from 'cryptopro-cadesplugin-api-ts';
+import { initCadesPluginClient, isCadesPluginError } from '@nkrass/cryptopro-cadesplugin-api-ts';
 
 try {
   const cades = await initCadesPluginClient(window, document);
