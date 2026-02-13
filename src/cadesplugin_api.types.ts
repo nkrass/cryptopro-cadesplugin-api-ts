@@ -37,6 +37,12 @@ export class CadesPluginError extends Error {
   }
 }
 
+export function isCadesPluginError(value: unknown): value is CadesPluginError {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as any;
+  return v.name === 'CadesPluginError' && typeof v.code === 'string' && typeof v.message === 'string';
+}
+
 export type CadesPluginInstallOptions = {
   /**
    * Overall initialization timeout. If not provided:

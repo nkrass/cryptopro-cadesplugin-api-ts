@@ -523,11 +523,12 @@ export function installCadesPlugin(
       if (!loadedUrl) {
         const details = normalizeErrorForUser(lastLoadError);
         const code: CadesPluginErrorCode = lastCspViolation ? 'CSP_BLOCKED' : 'EXTENSION_API_LOAD_FAILED';
+        const prefix = code === 'CSP_BLOCKED' ? 'CSP blocked. ' : '';
 
         throw cadesError(
           code,
           [
-            'CryptoPro extension API script failed to load.',
+            `${prefix}CryptoPro extension API script failed to load.`,
             'Make sure the CryptoPro CAdES extension is installed and enabled.',
             'If your site uses strict CSP, it must allow the CryptoPro extension origins in script-src/script-src-elem.',
             'If your server applies CSP per-route, do a full page reload on the route where CryptoPro is enabled.',
