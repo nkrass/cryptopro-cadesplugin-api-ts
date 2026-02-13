@@ -6,6 +6,9 @@
   "description": "Modern TypeScript CryptoPro CAdES cadesplugin_api loader (Chromium).",
   "license": "MIT",
   "author": "3BS",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -22,6 +25,7 @@
     "dist",
     "src",
     "README.md",
+    "README.ru.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"
   ],
@@ -30,8 +34,19 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm test",
     "upstream:fetch": "node scripts/fetch-upstream.mjs"
   },
+  "keywords": [
+    "cryptopro",
+    "cades",
+    "cadescom",
+    "cadesplugin",
+    "typescript",
+    "chromium",
+    "csp"
+  ],
   "devDependencies": {
     "@types/node": "^25.2.3",
     "tsup": "^8.5.0",

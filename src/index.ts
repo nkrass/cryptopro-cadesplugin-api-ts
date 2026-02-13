@@ -1,8 +1,10 @@
 import { installCadesPlugin } from './cadesplugin_api.install';
 import type { CadesPluginClient, CadesPluginInstallOptions } from './cadesplugin_api.types';
+import { CRYPTOPRO_EXTENSION_IDS, CRYPTOPRO_EXTENSION_ORIGINS } from './cadesplugin_api.utils';
 
 export { installCadesPlugin } from './cadesplugin_api.install';
 export { CadesPluginError } from './cadesplugin_api.types';
+export { CRYPTOPRO_EXTENSION_IDS, CRYPTOPRO_EXTENSION_ORIGINS } from './cadesplugin_api.utils';
 export type {
   CadesPluginClient,
   CadesPluginErrorCode,
