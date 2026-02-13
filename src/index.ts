@@ -1,14 +1,28 @@
 import { installCadesPlugin } from './cadesplugin_api.install';
-import type { CadesPluginClient } from './cadesplugin_api.types';
+import type { CadesPluginClient, CadesPluginInstallOptions } from './cadesplugin_api.types';
 
 export { installCadesPlugin } from './cadesplugin_api.install';
-export type { CadesPluginClient, CadesPluginGlobal, LogLevel } from './cadesplugin_api.types';
+export { CadesPluginError } from './cadesplugin_api.types';
+export type {
+  CadesPluginClient,
+  CadesPluginErrorCode,
+  CadesPluginErrorDetails,
+  CadesPluginGlobal,
+  CadesPluginInstallOptions,
+  CadesPluginLogLevelName,
+  CadesPluginLogger,
+  LogLevel,
+} from './cadesplugin_api.types';
 
 /**
  * Modern non-thenable wrapper. The `ready` Promise resolves when the extension/native host handshake is complete.
  */
-export function createCadesPluginClient(win: Window, doc: Document): CadesPluginClient {
-  const raw = installCadesPlugin(win, doc);
+export function createCadesPluginClient(
+  win: Window,
+  doc: Document,
+  options?: CadesPluginInstallOptions,
+): CadesPluginClient {
+  const raw = installCadesPlugin(win, doc, options);
   return {
     raw,
     ready: Promise.resolve(raw),
@@ -18,8 +32,12 @@ export function createCadesPluginClient(win: Window, doc: Document): CadesPlugin
   };
 }
 
-export async function initCadesPluginClient(win: Window, doc: Document): Promise<CadesPluginClient> {
-  const client = createCadesPluginClient(win, doc);
+export async function initCadesPluginClient(
+  win: Window,
+  doc: Document,
+  options?: CadesPluginInstallOptions,
+): Promise<CadesPluginClient> {
+  const client = createCadesPluginClient(win, doc, options);
   await client.ready;
   return client;
 }

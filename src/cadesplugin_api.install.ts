@@ -1,4 +1,11 @@
-import type { CadesPluginGlobal, LogLevel } from './cadesplugin_api.types';
+import {
+  CadesPluginError,
+  type CadesPluginErrorCode,
+  type CadesPluginGlobal,
+  type CadesPluginInstallOptions,
+  type CadesPluginLogger,
+  type LogLevel,
+} from './cadesplugin_api.types';
 import {
   buildCryptoProExtensionApiUrls,
   detectBrowser,
@@ -128,7 +135,62 @@ function normalizeErrorForUser(error: unknown): string {
   return message || 'CryptoPro plugin is not available';
 }
 
-export function installCadesPlugin(win: Window, doc: Document): CadesPluginGlobal {
+function defaultLogger(level: 'debug' | 'info' | 'error', message: string, data?: unknown) {
+  if (typeof console === 'undefined') return;
+  if (level === 'debug') console.log(message, data);
+  else if (level === 'info') console.info(message, data);
+  else console.error(message, data);
+}
+
+function toFinitePositiveMs(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function buildExtensionApiUrlFromId(id: string): string {
+  return `chrome-extension://${id}/nmcades_plugin_api.js`;
+}
+
+function normalizeExtensionIds(ids: readonly string[]): string[] {
+  const normalized: string[] = [];
+  for (const raw of ids) {
+    if (typeof raw !== 'string') continue;
+    const id = raw.trim();
+    if (!id) continue;
+    // Chrome extension ids are typically 32 characters (a-p).
+    if (!/^[a-p]{32}$/i.test(id)) continue;
+    normalized.push(id.toLowerCase());
+  }
+  return normalized;
+}
+
+function normalizeExtensionApiUrls(urls: readonly string[]): string[] {
+  const normalized: string[] = [];
+  for (const raw of urls) {
+    if (typeof raw !== 'string') continue;
+    const url = raw.trim();
+    if (!url) continue;
+    if (!url.startsWith('chrome-extension://')) continue;
+    normalized.push(url);
+  }
+  return normalized;
+}
+
+function cadesError(
+  code: CadesPluginErrorCode,
+  message: string,
+  details?: Record<string, unknown>,
+  cause?: unknown,
+): CadesPluginError {
+  return new CadesPluginError(code, message, details, cause !== undefined ? { cause } : undefined);
+}
+
+export function installCadesPlugin(
+  win: Window,
+  doc: Document,
+  options?: CadesPluginInstallOptions,
+): CadesPluginGlobal {
   const existing = (win as any).cadesplugin as unknown;
   if (
     existing &&
@@ -137,6 +199,40 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
     typeof (existing as any).async_spawn === 'function'
   ) {
     return existing as CadesPluginGlobal;
+  }
+
+  const opts = options ?? {};
+  const logger: CadesPluginLogger = typeof opts.logger === 'function' ? opts.logger : defaultLogger;
+
+  const timeoutMsOpt = opts.timeoutMs !== undefined ? toFinitePositiveMs(opts.timeoutMs) : null;
+  if (opts.timeoutMs !== undefined && timeoutMsOpt === null) {
+    throw cadesError('INVALID_OPTIONS', 'timeoutMs must be a finite positive number', {
+      timeoutMs: opts.timeoutMs,
+    });
+  }
+
+  const handshakeTimeoutMsOpt =
+    opts.handshakeTimeoutMs !== undefined ? toFinitePositiveMs(opts.handshakeTimeoutMs) : null;
+  if (opts.handshakeTimeoutMs !== undefined && handshakeTimeoutMsOpt === null) {
+    throw cadesError('INVALID_OPTIONS', 'handshakeTimeoutMs must be a finite positive number', {
+      handshakeTimeoutMs: opts.handshakeTimeoutMs,
+    });
+  }
+
+  const extensionApiUrlsOpt =
+    opts.extensionApiUrls !== undefined ? normalizeExtensionApiUrls(opts.extensionApiUrls) : null;
+  if (opts.extensionApiUrls !== undefined && (!extensionApiUrlsOpt || extensionApiUrlsOpt.length === 0)) {
+    throw cadesError('INVALID_OPTIONS', 'extensionApiUrls must include at least one chrome-extension:// URL', {
+      extensionApiUrls: opts.extensionApiUrls,
+    });
+  }
+
+  const extensionIdsOpt =
+    opts.extensionIds !== undefined ? normalizeExtensionIds(opts.extensionIds) : null;
+  if (opts.extensionIds !== undefined && (!extensionIdsOpt || extensionIdsOpt.length === 0)) {
+    throw cadesError('INVALID_OPTIONS', 'extensionIds must include at least one valid extension id', {
+      extensionIds: opts.extensionIds,
+    });
   }
 
   let pluginObject: PluginObject | null = null;
@@ -165,15 +261,28 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
   const LOG_LEVEL_INFO: LogLevel = 2;
   const LOG_LEVEL_ERROR: LogLevel = 1;
 
-  let currentLogLevel: LogLevel = LOG_LEVEL_ERROR;
+  const initialLogLevelRaw = opts.logLevel ?? LOG_LEVEL_ERROR;
+  if (initialLogLevelRaw !== LOG_LEVEL_DEBUG && initialLogLevelRaw !== LOG_LEVEL_INFO && initialLogLevelRaw !== LOG_LEVEL_ERROR) {
+    throw cadesError('INVALID_OPTIONS', 'logLevel must be 1 (error), 2 (info) or 4 (debug)', {
+      logLevel: initialLogLevelRaw,
+    });
+  }
+
+  let currentLogLevel: LogLevel = initialLogLevelRaw;
 
   const cpcsp_console_log = (level: LogLevel, msg: unknown) => {
-    // Avoid crashing on environments without a console (unlikely in modern browsers).
-    if (typeof console === 'undefined') return;
     if (level > currentLogLevel) return;
-    if (level === LOG_LEVEL_DEBUG) console.log('DEBUG:', msg);
-    else if (level === LOG_LEVEL_INFO) console.info('INFO:', msg);
-    else if (level === LOG_LEVEL_ERROR) console.error('ERROR:', msg);
+    const levelName = level === LOG_LEVEL_DEBUG ? 'debug' : level === LOG_LEVEL_INFO ? 'info' : 'error';
+    let message = '';
+    if (typeof msg === 'string') message = msg;
+    else {
+      try {
+        message = JSON.stringify(msg);
+      } catch {
+        message = String(msg);
+      }
+    }
+    logger(levelName, message, typeof msg === 'string' ? undefined : msg);
   };
 
   const set_pluginObject = (obj: unknown) => {
@@ -182,7 +291,7 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
 
   const CreateObjectAsync = (name: string) => {
     if (!pluginObject?.CreateObjectAsync) {
-      throw new Error('CryptoPro plugin is not ready (plugin object is missing)');
+      throw cadesError('PLUGIN_OBJECT_MISSING', 'CryptoPro plugin is not ready (plugin object is missing)');
     }
     return pluginObject.CreateObjectAsync(name);
   };
@@ -302,7 +411,10 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
   const ReleasePluginObjects = () => {
     const api = (win as any).cpcsp_chrome_nmcades as ChromeNmcadesApi | undefined;
     if (!api?.ReleasePluginObjects) {
-      throw new Error('CryptoPro extension API is not available (cpcsp_chrome_nmcades missing)');
+      throw cadesError(
+        'EXTENSION_API_MISSING',
+        'CryptoPro extension API is not available (cpcsp_chrome_nmcades missing)',
+      );
     }
     return api.ReleasePluginObjects();
   };
@@ -345,11 +457,16 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
     // ignore
   }
 
-  const loadTimeoutMsRaw = Number((win as any).cadesplugin_load_timeout);
-  const loadTimeoutMs = Number.isFinite(loadTimeoutMsRaw) && loadTimeoutMsRaw > 0 ? loadTimeoutMsRaw : 20_000;
+  const loadTimeoutMsFromWindow = toFinitePositiveMs((win as any).cadesplugin_load_timeout);
+  const loadTimeoutMs = timeoutMsOpt ?? loadTimeoutMsFromWindow ?? 20_000;
+  const handshakeTimeoutMs = handshakeTimeoutMsOpt ?? Math.min(5_000, loadTimeoutMs);
 
   const timeoutId = win.setTimeout(() => {
-    rejectOnce(new Error('CryptoPro plugin load timeout (extension missing or blocked)'));
+    rejectOnce(
+      cadesError('PLUGIN_LOAD_TIMEOUT', 'CryptoPro plugin load timeout (extension missing or blocked)', {
+        timeoutMs: loadTimeoutMs,
+      }),
+    );
   }, loadTimeoutMs);
 
   const settleOk = () => {
@@ -359,11 +476,17 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
 
   const settleError = (error?: unknown) => {
     win.clearTimeout(timeoutId);
-    if (error instanceof Error) {
+    if (error instanceof CadesPluginError) {
       rejectOnce(error);
       return;
     }
-    rejectOnce(new Error(normalizeErrorForUser(error)));
+
+    if (error instanceof Error) {
+      rejectOnce(cadesError('UNKNOWN', normalizeErrorForUser(error), { name: error.name }, error));
+      return;
+    }
+
+    rejectOnce(cadesError('UNKNOWN', normalizeErrorForUser(error), undefined, error));
   };
 
   const init = async () => {
@@ -372,7 +495,9 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
       // When extension script loading fails, a full reload on the target route is often required.
 
       const browser = detectBrowser(win.navigator.userAgent);
-      const urls = buildCryptoProExtensionApiUrls(browser);
+      const urls =
+        extensionApiUrlsOpt ??
+        (extensionIdsOpt ? extensionIdsOpt.map(buildExtensionApiUrlFromId) : buildCryptoProExtensionApiUrls(browser));
 
       let loadedUrl: string | null = null;
       let lastLoadError: unknown = null;
@@ -382,6 +507,7 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
       try {
         for (const url of urls) {
           try {
+            cpcsp_console_log(LOG_LEVEL_DEBUG, `Loading CryptoPro extension API script: ${url}`);
             await loadScript(doc, url);
             loadedUrl = url;
             break;
@@ -396,29 +522,31 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
 
       if (!loadedUrl) {
         const details = normalizeErrorForUser(lastLoadError);
-        const cspHint = lastCspViolation
-          ? `CSP blocked the extension script (directive: ${
-              lastCspViolation.effectiveDirective || lastCspViolation.violatedDirective || 'unknown'
-            }, blockedURI: ${lastCspViolation.blockedURI}).`
-          : '';
-        throw new Error(
+        const code: CadesPluginErrorCode = lastCspViolation ? 'CSP_BLOCKED' : 'EXTENSION_API_LOAD_FAILED';
+
+        throw cadesError(
+          code,
           [
             'CryptoPro extension API script failed to load.',
             'Make sure the CryptoPro CAdES extension is installed and enabled.',
             'If your site uses strict CSP, it must allow the CryptoPro extension origins in script-src/script-src-elem.',
             'If your server applies CSP per-route, do a full page reload on the route where CryptoPro is enabled.',
-            cspHint,
             `Details: ${details}`,
-          ]
-            .filter(Boolean)
-            .join(' '),
+          ].join(' '),
+          {
+            attemptedUrls: urls,
+            cspViolation: lastCspViolation ?? undefined,
+          },
+          lastLoadError,
         );
       }
 
       const api = (win as any).cpcsp_chrome_nmcades as ChromeNmcadesApi | undefined;
       if (!api?.check_chrome_plugin) {
-        throw new Error(
+        throw cadesError(
+          'EXTENSION_API_MISSING',
           'CryptoPro extension API loaded, but `cpcsp_chrome_nmcades.check_chrome_plugin` is missing.',
+          { loadedUrl },
         );
       }
 
@@ -433,35 +561,49 @@ export function installCadesPlugin(win: Window, doc: Document): CadesPluginGloba
         }
       })();
 
-      await waitForMessage(
-        win,
-        (event) => {
-          if (event.source !== win) return false;
-          if (origin && event.origin !== origin) return false;
-          return isCadesPluginLoadedMessage(event.data);
-        },
-        Math.min(5_000, loadTimeoutMs),
-      );
+      try {
+        await waitForMessage(
+          win,
+          (event) => {
+            if (event.source !== win) return false;
+            if (origin && event.origin !== origin) return false;
+            return isCadesPluginLoadedMessage(event.data);
+          },
+          handshakeTimeoutMs,
+        );
+      } catch (e) {
+        throw cadesError(
+          'HANDSHAKE_TIMEOUT',
+          'Timed out waiting for CryptoPro extension handshake (cadesplugin_loaded).',
+          { timeoutMs: handshakeTimeoutMs, loadedUrl },
+          e,
+        );
+      }
 
       await new Promise<void>((resolve, reject) => {
         api.check_chrome_plugin(
           () => resolve(),
           (e) =>
-            reject(
-              new Error(
-                [
-                  'CryptoPro extension is present, but the native host handshake failed.',
-                  normalizeErrorForUser(e),
-                ].join(' '),
-              ),
-            ),
+            reject(e),
+        );
+      }).catch((e) => {
+        throw cadesError(
+          'NATIVE_HOST_HANDSHAKE_FAILED',
+          [
+            'CryptoPro extension is present, but the native host handshake failed.',
+            normalizeErrorForUser(e),
+          ].join(' '),
+          { loadedUrl },
+          e,
         );
       });
 
       // `check_chrome_plugin` should have called `window.cadesplugin.set(...)` by now,
       // which populates `pluginObject` used by `CreateObjectAsync`.
       if (!pluginObject?.CreateObjectAsync) {
-        throw new Error('CryptoPro handshake completed, but plugin object is still missing.');
+        throw cadesError('PLUGIN_OBJECT_MISSING', 'CryptoPro handshake completed, but plugin object is still missing.', {
+          loadedUrl,
+        });
       }
 
       settleOk();
