@@ -73,15 +73,16 @@ All options are optional:
 Initialization rejects with `CadesPluginError` that includes a stable `.code`:
 
 ```ts
-import { CadesPluginError, initCadesPluginClient } from 'cryptopro-cadesplugin-api-ts';
+import {
+  initCadesPluginClient,
+  isCadesPluginError,
+} from 'cryptopro-cadesplugin-api-ts';
 
 try {
   const cades = await initCadesPluginClient(window, document);
   // ...
 } catch (e) {
-  if (e instanceof CadesPluginError) {
-    console.error('CryptoPro init failed:', e.code, e.details);
-  }
+  if (isCadesPluginError(e)) console.error('CryptoPro init failed:', e.code, e.details);
   throw e;
 }
 ```
